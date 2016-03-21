@@ -36,26 +36,27 @@ bool pushLeftOperation(StackInt& stack, const char& c) {
 	return false;
 }
 
-void shiftAndPush(StackInt& stack, int& num) {
+void shift(StackInt& stack, int& num) {
 	int opr = stack.top();
 	stack.pop();
 	if (opr == LEFT_SHIFT) num = num << 1;
 	if (opr == RIGHT_SHIFT) num = num >> 1;	
-	stack.push(num);
 }
 
-bool addMulAndPush(StackInt& stack, int& num) {
+void addMul(StackInt& stack, int& num, bool& syntaxError) {
 	int opr, lhs;
 	opr = stack.top();
 	stack.pop();
 	lhs = stack.top();
 	stack.pop();
-	if(lhs < 0) return false;
+	if(lhs < 0) { 
+		num = -100; 
+		syntaxError = true;
+		return; 
+	}
 
 	if (opr == ADDITION) num += lhs;
 	if (opr == MUPLIFICATION) num *= lhs;
-	stack.push(num);
-	return true;
 }
 
 int main(int argc, char const *argv[])
@@ -92,42 +93,61 @@ int main(int argc, char const *argv[])
                 cout << num << endl;
 
                 // deal with the number
-                if (stack.empty()) { syntaxError = true; break; }
-
-                int prevOpr = stack.top();               
-                if (prevOpr == LEFT_PAREN) { stack.push(num); continue; }
-                if (prevOpr == LEFT_SHIFT || prevOpr == RIGHT_SHIFT) {
-                	shiftAndPush(stack, num);
-                	continue;
-                }
-                if (prevOpr == ADDITION || prevOpr == MUPLIFICATION) {
-                	// syntax error if detect operator befor '+' or '*'
-                	if(!addMulAndPush(stack, num)) {
-                		syntaxError = true; 
-                		break;
-                	}
-                	continue;
-                }             
+                int prevOpr;
+                // keep computing until the number meets open parenthesis
+                // or the number be the bottom
+                if (!stack.empty())
+	                while ((prevOpr = stack.top()) != LEFT_PAREN) {
+		                if (prevOpr == LEFT_SHIFT || prevOpr == RIGHT_SHIFT) {
+		                	shift(stack, num);
+		                }
+		                if (prevOpr == ADDITION || prevOpr == MUPLIFICATION) {
+		                	// syntax error if detect operator befor '+' or '*'
+		                	addMul(stack, num, syntaxError);
+		                	if (syntaxError) break;
+		                }
+		                // if the previous is a number, syntax error
+		                if (prevOpr > 0) { syntaxError = true; break; }
+		                if (stack.empty()) break;
+		            }
+	            if (syntaxError) break; // break from the character loop
+	            cout << endl << "push: " << num << endl;
+	            stack.push(num);
             }
 
             // right-operation (')')
             if (tempC == ')') {
-            	int num, opr;
+            	int num;
+            	// ~)
+            	if (stack.empty()) { syntaxError = true; break; }
             	num = stack.top(); stack.pop();
-            	opr = stack.top(); stack.pop();
-            	if (num < 0 || opr != LEFT_PAREN) {
+            	// <) or ~5)
+            	if (num < 0 || stack.empty()) { syntaxError = true; break; }
+            	// 5 + 5 + ... + 5)
+            	while (stack.top() == ADDITION || stack.top() == MUPLIFICATION) {
+            		addMul(stack, num, syntaxError);
+            		if (syntaxError) break;
+            	}
+            	if (num < 0 || stack.top() != LEFT_PAREN) {
             		syntaxError = true;
             		break;
             	}
+            	stack.pop();
+            	cout << endl << "push: " << num << endl;
             	stack.push(num);
             }         	        
         }
 
         // if this line contains syntax error, skip this line
         if (syntaxError) continue;
-        // check stack
+        // finish the left computations and check stack
         int result = stack.top();
         stack.pop();
+        if (!stack.empty())
+	        while(stack.top() == LEFT_SHIFT || stack.top() == RIGHT_SHIFT) {
+		        shift(stack, result);
+		        if (stack.empty()) break;
+	        }
         if (stack.empty()) output << result << endl;
     }
 
