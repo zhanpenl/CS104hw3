@@ -59,6 +59,26 @@ void addMul(StackInt& stack, int& num, bool& syntaxError) {
 	if (opr == MUPLIFICATION) num *= lhs;
 }
 
+void computeStack(StackInt& stack, int& num, bool& syntaxError) {
+	int prevOpr;
+    // keep computing until the number meets open parenthesis
+    // or the number be the bottom
+    if (!stack.empty())
+        while ((prevOpr = stack.top()) != LEFT_PAREN) {
+            if (prevOpr == LEFT_SHIFT || prevOpr == RIGHT_SHIFT) {
+            	shift(stack, num);
+            }
+            if (prevOpr == ADDITION || prevOpr == MUPLIFICATION) {
+            	// syntax error if detect operator befor '+' or '*'
+            	addMul(stack, num, syntaxError);
+            	if (syntaxError) break;
+            }
+            // if the previous is a number, syntax error
+            if (prevOpr > 0) { syntaxError = true; break; }
+            if (stack.empty()) break;
+        }
+}
+
 int main(int argc, char const *argv[])
 {
 	if(argc < 3){
@@ -72,6 +92,8 @@ int main(int argc, char const *argv[])
 	string curr;
     
     while(getline(input, curr)) {
+    	if (curr.length() == 0) continue;
+
     	StackInt stack; // initialize a stack for every line
         stringstream ss; // string stream to parse lines
         ss << curr;
@@ -92,24 +114,8 @@ int main(int argc, char const *argv[])
                 ss >> num;
                 cout << num << endl;
 
-                // deal with the number
-                int prevOpr;
-                // keep computing until the number meets open parenthesis
-                // or the number be the bottom
-                if (!stack.empty())
-	                while ((prevOpr = stack.top()) != LEFT_PAREN) {
-		                if (prevOpr == LEFT_SHIFT || prevOpr == RIGHT_SHIFT) {
-		                	shift(stack, num);
-		                }
-		                if (prevOpr == ADDITION || prevOpr == MUPLIFICATION) {
-		                	// syntax error if detect operator befor '+' or '*'
-		                	addMul(stack, num, syntaxError);
-		                	if (syntaxError) break;
-		                }
-		                // if the previous is a number, syntax error
-		                if (prevOpr > 0) { syntaxError = true; break; }
-		                if (stack.empty()) break;
-		            }
+                // do all computations avalible in the stack
+                computeStack(stack, num, syntaxError);
 	            if (syntaxError) break; // break from the character loop
 	            cout << endl << "push: " << num << endl;
 	            stack.push(num);
@@ -133,13 +139,19 @@ int main(int argc, char const *argv[])
             		break;
             	}
             	stack.pop();
+            	// after poping the open parenthesis, compute avaliable computations
+            	computeStack(stack, num, syntaxError);
+	            if (syntaxError) break;
             	cout << endl << "push: " << num << endl;
             	stack.push(num);
             }         	        
         }
 
         // if this line contains syntax error, skip this line
-        if (syntaxError) continue;
+        if (syntaxError) {
+        	output << "Malformed" << endl;
+        	continue;
+        }
         // finish the left computations and check stack
         int result = stack.top();
         stack.pop();
@@ -149,6 +161,7 @@ int main(int argc, char const *argv[])
 		        if (stack.empty()) break;
 	        }
         if (stack.empty()) output << result << endl;
+        else output << "Malformed" << endl;
     }
 
 
